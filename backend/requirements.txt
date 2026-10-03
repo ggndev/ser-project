@@ -1,0 +1,7 @@
+fastapi>=0.110
+uvicorn>=0.29
+python-multipart>=0.0.9
+onnxruntime>=1.17
+soundfile>=0.12
+soxr>=0.3
+numpy>=1.24,<3

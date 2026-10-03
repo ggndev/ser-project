@@ -1,0 +1,15 @@
+{
+  "labels": [
+    "angry",
+    "disgust",
+    "fear",
+    "happy",
+    "neutral",
+    "sad",
+    "surprise"
+  ],
+  "sample_rate": 16000,
+  "window_samples": 48000,
+  "top_db": 30,
+  "architecture": "CNN-BiLSTM-Attn"
+}

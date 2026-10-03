@@ -1,0 +1,17 @@
+{
+  "labels": [
+    "angry",
+    "disgust",
+    "fear",
+    "happy",
+    "neutral",
+    "sad",
+    "surprise"
+  ],
+  "sample_rate": 16000,
+  "window_samples": 48000,
+  "top_db": 30,
+  "architecture": "Wav2Vec2-base",
+  "protocol2_mean_acc": 0.7655296583381781,
+  "protocol1_acc": 0.8650634602538411
+}

@@ -2,7 +2,7 @@
 
 POST /predict  (multipart/form-data, field "file" = wav/flac/ogg/mp3 audio)
   -> {"emotion", "confidence", "probabilities", "windows": [...], "speech_detected", "latency_ms"}
-GET  /health   -> {"status": "ok", ...}
+GET  /health   -> {"status": "ok", ...}   (used by uptime monitors)
 
 Pre-processing is identical to the training notebook (`to_fixed`): 16 kHz mono -> librosa.effects.trim(top_db=30)
 -> centre-crop / zero-pad to 3 s. Audio longer than 3 s is scored with a 3 s window / 1.5 s hop (50 % overlap) and the
@@ -19,7 +19,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 MODEL_DIR = os.environ.get("MODEL_DIR", os.path.join(os.path.dirname(__file__), "model"))
 MODEL_FILE = os.environ.get("MODEL_FILE", "model.onnx")
-MAX_SECONDS = float(os.environ.get("MAX_SECONDS", "30"))       # reject / truncate very long uploads
+MAX_SECONDS = float(os.environ.get("MAX_SECONDS", "20"))       # reject / truncate very long uploads
+MAX_WINDOWS = int(os.environ.get("MAX_WINDOWS", "5"))          # cap work per request on a tiny CPU
 MIN_RMS = float(os.environ.get("MIN_RMS", "0.003"))            # energy gate for "no speech"
 
 meta = json.load(open(os.path.join(MODEL_DIR, "labels.json")))
@@ -85,13 +86,19 @@ def softmax(z):
 
 
 def windows(y: np.ndarray):
-    """Yield (start_sample, segment) with 50 % overlap; one window if the clip is <= 3 s."""
+    """Yield (start_sample, segment) of 3 s. Clips <= 3 s: one window. Clips <= 6 s: 50 % overlap (hop 1.5 s).
+    Longer clips: hop 3 s (no overlap) so a 15 s recording needs only 5 model calls on a tiny free CPU."""
     if len(y) <= N:
         yield 0, y
         return
-    hop = N // 2
-    for s in range(0, len(y) - hop, hop):
-        yield s, y[s:s + N]
+    hop = N // 2 if len(y) <= 2 * N else N
+    for s in range(0, len(y), hop):
+        seg = y[s:s + N]
+        if len(seg) < N // 3 and s > 0:        # ignore a tiny tail
+            break
+        yield s, seg
+        if s + N >= len(y):
+            break
 
 
 @app.get("/")
@@ -117,7 +124,7 @@ async def predict(file: UploadFile = File(...)):
         raise HTTPException(400, f"could not decode audio: {type(e).__name__}") from e
 
     segs, wins = [], []
-    for s, seg in windows(y):
+    for s, seg in list(windows(y))[:MAX_WINDOWS]:
         rms = float(np.sqrt(np.mean(seg ** 2))) if len(seg) else 0.0
         if rms < MIN_RMS:                                    # energy gate: skip silent windows
             wins.append({"start_s": round(s / SR, 2), "speech": False})
@@ -128,7 +135,9 @@ async def predict(file: UploadFile = File(...)):
         return {"emotion": None, "confidence": 0.0, "probabilities": {}, "windows": wins, "speech_detected": False,
                 "latency_ms": round((time.time() - t0) * 1000, 1)}
 
-    probs = softmax(SESSION.run(None, {"waveform": np.stack([x for _, x in segs])})[0])    # (n_windows, n_classes)
+    # One window per session.run (batch=1): batching several 3 s windows of a transformer needs hundreds of MB extra RAM,
+    # which crashes a 512 MB free instance (502). Sequential keeps peak memory flat.
+    probs = softmax(np.concatenate([SESSION.run(None, {"waveform": x[None]})[0] for _, x in segs]))   # (n_windows, n_classes)
     for (wi, _), p in zip(segs, probs):
         wins[wi].update(emotion=LABELS[int(p.argmax())], confidence=round(float(p.max()), 4))
     mean_p = probs.mean(axis=0)

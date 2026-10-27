@@ -1,0 +1,516 @@
+{
+  "info": {
+    "name": "SER API (Render)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Speech emotion API tests (no authentication; login lives in the Android app). Set the Postman working directory to the 'postman' folder so samples/ uploads resolve."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://ser-api-r6mj.onrender.com"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Health",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test(\"status ok\", () => pm.expect(j.status).to.eql(\"ok\"));",
+              "pm.test(\"7 labels\", () => pm.expect(j.labels).to.have.lengthOf(7));",
+              "pm.test(\"fast (service awake)\", () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Root info",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            ""
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+              "pm.test(\"lists labels\", () => pm.expect(pm.response.json().labels).to.be.an(\"array\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Predict — happy clip",
+      "request": {
+        "method": "POST",
+        "description": "",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "samples/clip_happy.wav"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/predict",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "predict"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+              "pm.test(\"speech detected\", () => pm.expect(j.speech_detected).to.be.true);",
+              "pm.test(\"emotion is one of 7 labels\", () => pm.expect([\"angry\",\"disgust\",\"fear\",\"happy\",\"neutral\",\"sad\",\"surprise\"]).to.include(j.emotion));",
+              "pm.test(\"confidence in (0,1]\", () => { pm.expect(j.confidence).to.be.above(0); pm.expect(j.confidence).to.be.at.most(1); });",
+              "pm.test(\"probabilities sum ~1 and 7 classes\", () => { const v = Object.values(j.probabilities); pm.expect(v.length).to.eql(7); pm.expect(v.reduce((a,b)=>a+b,0)).to.be.closeTo(1, 0.02); });",
+              "pm.test(\"top class equals reported emotion\", () => { const p=j.probabilities; pm.expect(Object.keys(p).reduce((a,b)=>p[a]>p[b]?a:b)).to.eql(j.emotion); });",
+              "pm.test(\"responds within 60 s\", () => pm.expect(pm.response.responseTime).to.be.below(60000));",
+              "pm.test(\"[info] expected happy; got \" + j.emotion, () => pm.expect(true).to.be.true);",
+              "pm.test(\"predicts happy (soft check on a known clip)\", () => pm.expect(j.emotion).to.eql(\"happy\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Predict — sad clip",
+      "request": {
+        "method": "POST",
+        "description": "",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "samples/clip_sad.wav"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/predict",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "predict"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+              "pm.test(\"speech detected\", () => pm.expect(j.speech_detected).to.be.true);",
+              "pm.test(\"emotion is one of 7 labels\", () => pm.expect([\"angry\",\"disgust\",\"fear\",\"happy\",\"neutral\",\"sad\",\"surprise\"]).to.include(j.emotion));",
+              "pm.test(\"confidence in (0,1]\", () => { pm.expect(j.confidence).to.be.above(0); pm.expect(j.confidence).to.be.at.most(1); });",
+              "pm.test(\"probabilities sum ~1 and 7 classes\", () => { const v = Object.values(j.probabilities); pm.expect(v.length).to.eql(7); pm.expect(v.reduce((a,b)=>a+b,0)).to.be.closeTo(1, 0.02); });",
+              "pm.test(\"top class equals reported emotion\", () => { const p=j.probabilities; pm.expect(Object.keys(p).reduce((a,b)=>p[a]>p[b]?a:b)).to.eql(j.emotion); });",
+              "pm.test(\"responds within 60 s\", () => pm.expect(pm.response.responseTime).to.be.below(60000));",
+              "pm.test(\"[info] expected sad; got \" + j.emotion, () => pm.expect(true).to.be.true);",
+              "pm.test(\"predicts sad (soft check on a known clip)\", () => pm.expect(j.emotion).to.eql(\"sad\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Predict — surprise clip",
+      "request": {
+        "method": "POST",
+        "description": "",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "samples/clip_surprise.wav"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/predict",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "predict"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+              "pm.test(\"speech detected\", () => pm.expect(j.speech_detected).to.be.true);",
+              "pm.test(\"emotion is one of 7 labels\", () => pm.expect([\"angry\",\"disgust\",\"fear\",\"happy\",\"neutral\",\"sad\",\"surprise\"]).to.include(j.emotion));",
+              "pm.test(\"confidence in (0,1]\", () => { pm.expect(j.confidence).to.be.above(0); pm.expect(j.confidence).to.be.at.most(1); });",
+              "pm.test(\"probabilities sum ~1 and 7 classes\", () => { const v = Object.values(j.probabilities); pm.expect(v.length).to.eql(7); pm.expect(v.reduce((a,b)=>a+b,0)).to.be.closeTo(1, 0.02); });",
+              "pm.test(\"top class equals reported emotion\", () => { const p=j.probabilities; pm.expect(Object.keys(p).reduce((a,b)=>p[a]>p[b]?a:b)).to.eql(j.emotion); });",
+              "pm.test(\"responds within 60 s\", () => pm.expect(pm.response.responseTime).to.be.below(60000));",
+              "pm.test(\"[info] expected surprise; got \" + j.emotion, () => pm.expect(true).to.be.true);",
+              "pm.test(\"predicts surprise (soft check on a known clip)\", () => pm.expect(j.emotion).to.eql(\"surprise\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Predict — neutral clip",
+      "request": {
+        "method": "POST",
+        "description": "",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "samples/clip_neutral.wav"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/predict",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "predict"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+              "pm.test(\"speech detected\", () => pm.expect(j.speech_detected).to.be.true);",
+              "pm.test(\"emotion is one of 7 labels\", () => pm.expect([\"angry\",\"disgust\",\"fear\",\"happy\",\"neutral\",\"sad\",\"surprise\"]).to.include(j.emotion));",
+              "pm.test(\"confidence in (0,1]\", () => { pm.expect(j.confidence).to.be.above(0); pm.expect(j.confidence).to.be.at.most(1); });",
+              "pm.test(\"probabilities sum ~1 and 7 classes\", () => { const v = Object.values(j.probabilities); pm.expect(v.length).to.eql(7); pm.expect(v.reduce((a,b)=>a+b,0)).to.be.closeTo(1, 0.02); });",
+              "pm.test(\"top class equals reported emotion\", () => { const p=j.probabilities; pm.expect(Object.keys(p).reduce((a,b)=>p[a]>p[b]?a:b)).to.eql(j.emotion); });",
+              "pm.test(\"responds within 60 s\", () => pm.expect(pm.response.responseTime).to.be.below(60000));",
+              "pm.test(\"[info] expected neutral; got \" + j.emotion, () => pm.expect(true).to.be.true);",
+              "pm.test(\"predicts neutral (soft check on a known clip)\", () => pm.expect(j.emotion).to.eql(\"neutral\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Predict — fear clip",
+      "request": {
+        "method": "POST",
+        "description": "",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "samples/clip_fear.wav"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/predict",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "predict"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+              "pm.test(\"speech detected\", () => pm.expect(j.speech_detected).to.be.true);",
+              "pm.test(\"emotion is one of 7 labels\", () => pm.expect([\"angry\",\"disgust\",\"fear\",\"happy\",\"neutral\",\"sad\",\"surprise\"]).to.include(j.emotion));",
+              "pm.test(\"confidence in (0,1]\", () => { pm.expect(j.confidence).to.be.above(0); pm.expect(j.confidence).to.be.at.most(1); });",
+              "pm.test(\"probabilities sum ~1 and 7 classes\", () => { const v = Object.values(j.probabilities); pm.expect(v.length).to.eql(7); pm.expect(v.reduce((a,b)=>a+b,0)).to.be.closeTo(1, 0.02); });",
+              "pm.test(\"top class equals reported emotion\", () => { const p=j.probabilities; pm.expect(Object.keys(p).reduce((a,b)=>p[a]>p[b]?a:b)).to.eql(j.emotion); });",
+              "pm.test(\"responds within 60 s\", () => pm.expect(pm.response.responseTime).to.be.below(60000));",
+              "pm.test(\"[info] expected fear; got \" + j.emotion, () => pm.expect(true).to.be.true);",
+              "pm.test(\"predicts fear (soft check on a known clip)\", () => pm.expect(j.emotion).to.eql(\"fear\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Predict — long 9 s clip (multi-window)",
+      "request": {
+        "method": "POST",
+        "description": "Windows of 3 s, 50% overlap, probabilities averaged. Takes ~30 s on free CPU.",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "samples/long_9s_happy_sad_angry.wav"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/predict",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "predict"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+              "pm.test(\"speech detected\", () => pm.expect(j.speech_detected).to.be.true);",
+              "pm.test(\"emotion is one of 7 labels\", () => pm.expect([\"angry\",\"disgust\",\"fear\",\"happy\",\"neutral\",\"sad\",\"surprise\"]).to.include(j.emotion));",
+              "pm.test(\"confidence in (0,1]\", () => { pm.expect(j.confidence).to.be.above(0); pm.expect(j.confidence).to.be.at.most(1); });",
+              "pm.test(\"probabilities sum ~1 and 7 classes\", () => { const v = Object.values(j.probabilities); pm.expect(v.length).to.eql(7); pm.expect(v.reduce((a,b)=>a+b,0)).to.be.closeTo(1, 0.02); });",
+              "pm.test(\"top class equals reported emotion\", () => { const p=j.probabilities; pm.expect(Object.keys(p).reduce((a,b)=>p[a]>p[b]?a:b)).to.eql(j.emotion); });",
+              "pm.test(\"responds within 60 s\", () => pm.expect(pm.response.responseTime).to.be.below(60000));",
+              "pm.test(\"multiple windows (capped at 4)\", () => { const n=pm.response.json().windows.length; pm.expect(n).to.be.within(2,4); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Predict — silence (no speech)",
+      "request": {
+        "method": "POST",
+        "description": "",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "samples/silence.wav"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/predict",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "predict"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test(\"speech_detected false\", () => pm.expect(j.speech_detected).to.be.false);",
+              "pm.test(\"emotion null\", () => pm.expect(j.emotion).to.be.null);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 Predict — not an audio file (negative)",
+      "request": {
+        "method": "POST",
+        "description": "",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "samples/not_audio.txt"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/predict",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "predict"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));",
+              "pm.test(\"decode error message\", () => pm.expect(pm.response.json().detail).to.include(\"could not decode\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 Predict — missing file field (negative)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": []
+        },
+        "url": {
+          "raw": "{{baseUrl}}/predict",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "predict"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"422 Unprocessable\", () => pm.response.to.have.status(422));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 Wrong method on /predict (negative)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/predict",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "predict"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"405 Method Not Allowed\", () => pm.response.to.have.status(405));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 Unknown route (negative)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/nope",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "nope"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"404 Not Found\", () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
